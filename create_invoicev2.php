@@ -9,27 +9,65 @@ $shipmentsResult = $conn->query($shipmentsQuery);
 $customersQuery = "SELECT CustomerID, CustomerName FROM Customers";
 $customersResult = $conn->query($customersQuery);
 
+// ... [Previous PHP code]
+
 // Handle Form Submission
 if (isset($_POST['create_invoice'])) {
-    $customerID = $_POST['customer_id'];
-    $shipmentID = $_POST['shipment_id'];
-    // ... [Capture other form fields]
+    // Capture form data
+    // ... [Previous data capture]
 
-    // Validate and process form data
-    // Ensure all required fields are filled
-    // Calculate total price and other required values
+    // Calculate Total Price
+    $pricePerKg = $_POST['price_per_kg'];
+    $netWeight = $_POST['net_weight'];
+    $vatChecked = isset($_POST['vat']);
+    $shippingCost = $_POST['shipping_cost'];
+    $totalPrice = $pricePerKg * $netWeight;
+    if ($vatChecked) {
+        $totalPrice += $totalPrice * 0.09; // Adding 9% VAT
+    }
+    $totalPrice += $shippingCost;
 
-    // Insert into Sales table
-    // Prepare SQL query to insert data into Sales table
-    // Bind parameters and execute query
-    // Check for errors in insertion
+    // Begin transaction
+    $conn->begin_transaction();
 
-    // Update Shipments, Trucks, and Products
-    // Prepare and execute updates on respective tables
-    // Check for errors in updates
+    try {
+        // Insert into Sales
+        $insertSalesQuery = "INSERT INTO Sales (Date, CustomerID, TruckID, LicenseNumber, ListofReels, Weight1, Weight2, NetWeight, ShippingCost, VAT, TotalPrice, InvoiceStatus, PaymentStatus, InvoiceNumber, DocumentInfo, Comments, ShipmentID) VALUES (NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        $insertSales = $conn->prepare($insertSalesQuery);
+        // Bind parameters from form data
+        $insertSales->bind_param("iiisssdddidsssss", $customerID, $truckID, $licenseNumber, $listOfReels, $weight1, $weight2, $netWeight, $shippingCost, $vatChecked, $totalPrice, $invoiceStatus, $paymentStatus, $invoiceNumber, $documentInfo, $comments, $shipmentID);
+        $insertSales->execute();
+        $saleID = $conn->insert_id;
 
-    // Return success message or handle errors
+        // Check for errors
+        if ($insertSales->error) {
+            throw new Exception("Error in inserting sales: " . $insertSales->error);
+        }
+
+        // Update Shipments
+        // Update query for Shipments table
+        // ...
+
+        // Update Trucks
+        // Update query for Trucks table
+        // ...
+
+        // Update Products (ListofReels)
+        // Update query for each reel in the list
+        // ...
+
+        // Commit transaction
+        $conn->commit();
+
+        echo "<p style='color:green;'>Invoice created successfully with Sale ID: $saleID</p>";
+    } catch (Exception $e) {
+        // Rollback transaction on error
+        $conn->rollback();
+        echo "<p style='color:red;'>Transaction failed: " . $e->getMessage() . "</p>";
+    }
 }
+
+// ... [Rest of the script]
 
 // HTML for form
 echo "<form method='post' id='sales_form'>";
